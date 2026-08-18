@@ -12,6 +12,8 @@ import {
   RotateCcw,
   Sparkles,
   Target,
+  PenLine,
+  Volume2,
   X,
 } from "lucide-react";
 import {
@@ -147,6 +149,7 @@ const QUESTION_IDS = QUESTIONS.map((question) => question.id);
 const STORAGE_NOTICE = "⚠️ 提醒：為確保能永久保存您的錯題紀錄，請點擊右上角選單，選擇【在 Safari / Chrome 中開啟】。請勿使用 LINE 或 IG 內建瀏覽器，也請勿使用無痕模式。";
 
 type Feedback = { kind: "correct" | "incorrect"; message: string } | null;
+type ViewMode = "practice" | "review";
 
 function QuestionMarker({
   number,
@@ -251,11 +254,127 @@ function MistakeBook({ record, onFocus }: { record: StudyRecord; onFocus: (id: s
   );
 }
 
+function ReviewWorkspace({
+  reviewItems,
+  selectedQuestion,
+  spellingPractice,
+  onSelect,
+  onPlay,
+  onSpellingChange,
+  onStartNewRound,
+  onBackToPractice,
+}: {
+  reviewItems: Question[];
+  selectedQuestion: Question | undefined;
+  spellingPractice: string[];
+  onSelect: (id: string) => void;
+  onPlay: () => void;
+  onSpellingChange: (index: number, value: string) => void;
+  onStartNewRound: () => void;
+  onBackToPractice: () => void;
+}) {
+  const hasItems = reviewItems.length > 0;
+
+  return (
+    <main className="review-page">
+      <section className="review-hero" aria-labelledby="review-title">
+        <div>
+          <p className="eyebrow"><span /> ROUND REVIEW · 本輪檢討</p>
+          <h1 id="review-title">先把錯題<br /><em>好好看一遍。</em></h1>
+          <p>這裡只收錄本輪答錯的單字。點選單字會播放發音；你也可以自由練寫五遍，不會影響任何作答紀錄。</p>
+        </div>
+        <div className="review-hero-actions">
+          <button type="button" className="quiet-action" onClick={onBackToPractice}>回到本輪題目</button>
+          <button type="button" className="new-round-button" onClick={onStartNewRound}>
+            <RotateCcw size={15} /> 新的一輪
+          </button>
+        </div>
+      </section>
+
+      {!hasItems ? (
+        <section className="review-empty">
+          <BookOpenCheck size={35} />
+          <p className="eyebrow"><span /> ROUND COMPLETE</p>
+          <h2>這一輪沒有錯題。</h2>
+          <p>你可以直接開始新的練習，或回到本輪題目再確認一次。</p>
+          <button type="button" className="continue-button" onClick={onStartNewRound}>開始新的練習 <ArrowRight size={18} /></button>
+        </section>
+      ) : (
+        <section className="review-workspace">
+          <aside className="review-index" aria-label="本輪錯題列表">
+            <div className="review-index-heading"><span>本輪錯題</span><strong>{reviewItems.length} 題</strong></div>
+            {reviewItems.map((question, index) => (
+              <button
+                type="button"
+                className={`review-item ${selectedQuestion?.id === question.id ? "is-selected" : ""}`}
+                key={question.id}
+                onClick={() => onSelect(question.id)}
+              >
+                <span className="review-order">{String(index + 1).padStart(2, "0")}</span>
+                <span className="review-item-copy"><b>{question.word}</b><small>{question.category}</small></span>
+                <Volume2 size={16} />
+              </button>
+            ))}
+          </aside>
+
+          {selectedQuestion && (
+            <article className="review-sheet">
+              <div className="review-sheet-topline"><span>WORD REVIEW</span><span>{selectedQuestion.category}</span></div>
+              <div className="review-word-row">
+                <div>
+                  <p className="review-word">{selectedQuestion.word}</p>
+                  <p className="review-meaning">{selectedQuestion.hint}</p>
+                </div>
+                <button type="button" className="speak-button" onClick={onPlay} aria-label={`播放 ${selectedQuestion.word} 的發音`}>
+                  <Volume2 size={19} />
+                  <span>聽發音</span>
+                </button>
+              </div>
+              <div className="full-sentence" lang="en">{selectedQuestion.sentence}</div>
+
+              <section className="spelling-practice" aria-labelledby="spelling-title">
+                <div className="spelling-heading">
+                  <span className="spelling-icon"><PenLine size={18} /></span>
+                  <div>
+                    <p className="eyebrow"><span /> OPTIONAL PRACTICE</p>
+                    <h2 id="spelling-title">想練寫的話，就寫 5 遍。</h2>
+                    <p>這是自由練習區，不要求完成、不計次，也不會改變錯題本。</p>
+                  </div>
+                </div>
+                <div className="spelling-lines">
+                  {Array.from({ length: 5 }, (_, index) => (
+                    <label key={index}>
+                      <span>{index + 1}</span>
+                      <input
+                        type="text"
+                        value={spellingPractice[index] ?? ""}
+                        onChange={(event) => onSpellingChange(index, event.target.value.replace(/[^a-zA-Z]/g, ""))}
+                        placeholder={`請寫 ${selectedQuestion.word}`}
+                        autoCapitalize="none"
+                        autoCorrect="off"
+                        spellCheck={false}
+                        aria-label={`第 ${index + 1} 次拼寫 ${selectedQuestion.word}`}
+                      />
+                    </label>
+                  ))}
+                </div>
+              </section>
+            </article>
+          )}
+        </section>
+      )}
+    </main>
+  );
+}
+
 export default function Home() {
   const [record, setRecord] = useState<StudyRecord>(() => loadStudyRecord(QUESTION_IDS));
   const [answer, setAnswer] = useState("");
   const [feedback, setFeedback] = useState<Feedback>(null);
   const [storageAvailable, setStorageAvailable] = useState(true);
+  const [viewMode, setViewMode] = useState<ViewMode>("practice");
+  const [reviewQuestionId, setReviewQuestionId] = useState("");
+  const [spellingPractice, setSpellingPractice] = useState<Record<string, string[]>>({});
 
   const questionById = useMemo(() => new Map(QUESTIONS.map((question) => [question.id, question])), []);
   const activeQuestion = questionById.get(record.activeQuestionId) ?? QUESTIONS[0];
@@ -263,6 +382,13 @@ export default function Home() {
   const activeIndex = currentRoundIds.indexOf(activeQuestion.id);
   const isLastQuestion = activeIndex === currentRoundIds.length - 1;
   const answerProgress = record.questions[activeQuestion.id];
+  const roundMistakeIds = currentRoundIds.filter(
+    (id) => record.currentRoundCompletedIds.includes(id) && record.questions[id]?.lastStatus === "incorrect",
+  );
+  const reviewItems = roundMistakeIds
+    .map((id) => questionById.get(id))
+    .filter((question): question is Question => Boolean(question));
+  const reviewQuestion = questionById.get(reviewQuestionId) ?? reviewItems[0];
 
   useEffect(() => {
     document.title = "TOEFL Word Lab｜Complete the Words";
@@ -277,19 +403,58 @@ export default function Home() {
     commit(setActiveQuestion(record, questionId));
     setAnswer("");
     setFeedback(null);
+    setViewMode("practice");
   }
 
   function handleNewRound() {
     commit(createNewRound(record, QUESTION_IDS));
     setAnswer("");
     setFeedback(null);
+    setReviewQuestionId("");
+    setViewMode("practice");
+  }
+
+  function playPronunciation(question: Question) {
+    if (!("speechSynthesis" in window)) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(`${question.word}. ${question.sentence}`);
+    utterance.lang = "en-US";
+    utterance.rate = 0.82;
+    window.speechSynthesis.speak(utterance);
+  }
+
+  function openReviewQuestion(questionId: string) {
+    const question = questionById.get(questionId);
+    if (!question) return;
+    setReviewQuestionId(questionId);
+    setViewMode("review");
+    playPronunciation(question);
+  }
+
+  function openRoundReview() {
+    setViewMode("review");
+    const firstMistake = roundMistakeIds[0];
+    if (firstMistake) {
+      openReviewQuestion(firstMistake);
+    } else {
+      setReviewQuestionId("");
+    }
+  }
+
+  function updateSpellingPractice(index: number, value: string) {
+    if (!reviewQuestion) return;
+    setSpellingPractice((current) => {
+      const next = [...(current[reviewQuestion.id] ?? Array(5).fill(""))];
+      next[index] = value;
+      return { ...current, [reviewQuestion.id]: next };
+    });
   }
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (feedback) {
       if (isLastQuestion) {
-        handleNewRound();
+        openRoundReview();
       } else {
         nextQuestion();
       }
@@ -337,6 +502,7 @@ export default function Home() {
         </div>
       </header>
 
+      {viewMode === "practice" ? (
       <main>
         <section className="hero" aria-labelledby="hero-title">
           <div className="hero-copy">
@@ -404,7 +570,7 @@ export default function Home() {
               </div>
               <div className="form-actions">
                 <button type="submit" className="submit-button">
-                  {feedback ? (isLastQuestion ? "按 Enter 開始新的練習" : "按 Enter 前往下一題") : "提交並批改"} <ArrowRight size={18} />
+                  {feedback ? (isLastQuestion ? "按 Enter 前往本輪檢討" : "按 Enter 前往下一題") : "提交並批改"} <ArrowRight size={18} />
                 </button>
                 {feedback && (
                   <>
@@ -415,9 +581,9 @@ export default function Home() {
                     <button
                       type="button"
                       className="continue-button"
-                      onClick={isLastQuestion ? handleNewRound : nextQuestion}
+                      onClick={isLastQuestion ? openRoundReview : nextQuestion}
                     >
-                      {isLastQuestion ? "完成本輪，開始新的練習" : `下一題 ${activeIndex + 2} / ${currentRoundIds.length}`}
+                      {isLastQuestion ? "完成本輪，前往檢討" : `下一題 ${activeIndex + 2} / ${currentRoundIds.length}`}
                       <ChevronRight size={18} />
                     </button>
                   </>
@@ -432,7 +598,7 @@ export default function Home() {
 
           </article>
 
-          <MistakeBook record={record} onFocus={selectQuestion} />
+          <MistakeBook record={record} onFocus={openReviewQuestion} />
         </section>
 
         <section className="strategy-section" aria-labelledby="strategy-title">
@@ -445,7 +611,18 @@ export default function Home() {
           </div>
         </section>
       </main>
-
+      ) : (
+        <ReviewWorkspace
+          reviewItems={reviewItems}
+          selectedQuestion={reviewQuestion}
+          spellingPractice={reviewQuestion ? spellingPractice[reviewQuestion.id] ?? [] : []}
+          onSelect={openReviewQuestion}
+          onPlay={() => reviewQuestion && playPronunciation(reviewQuestion)}
+          onSpellingChange={updateSpellingPractice}
+          onStartNewRound={handleNewRound}
+          onBackToPractice={() => setViewMode("practice")}
+        />
+      )}
       <footer>TOEFL WORD LAB <span>·</span> 你的作答紀錄只保存在目前使用的瀏覽器中</footer>
     </div>
   );
