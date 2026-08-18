@@ -14,7 +14,6 @@ import {
   Sparkles,
   Target,
   PenLine,
-  Volume2,
   X,
 } from "lucide-react";
 import {
@@ -380,7 +379,6 @@ function ReviewWorkspace({
   selectedQuestion,
   spellingPractice,
   onSelect,
-  onPlay,
   onSpellingChange,
   onStartNewRound,
   onBackToPractice,
@@ -389,7 +387,6 @@ function ReviewWorkspace({
   selectedQuestion: Question | undefined;
   spellingPractice: string[];
   onSelect: (id: string) => void;
-  onPlay: () => void;
   onSpellingChange: (index: number, value: string) => void;
   onStartNewRound: () => void;
   onBackToPractice: () => void;
@@ -402,7 +399,7 @@ function ReviewWorkspace({
         <div>
           <p className="eyebrow"><span /> ROUND REVIEW · 本輪檢討</p>
           <h1 id="review-title">先把錯題<br /><em>好好看一遍。</em></h1>
-          <p>這裡只收錄本輪答錯的單字。點選單字會播放發音；你也可以自由練寫五遍，不會影響任何作答紀錄。</p>
+          <p>這裡只收錄本輪答錯的單字。你可以查看完整例句，並自由練寫直到熟練，不會影響任何作答紀錄。</p>
         </div>
         <div className="review-hero-actions">
           <button type="button" className="quiet-action" onClick={onBackToPractice}>回到本輪題目</button>
@@ -433,7 +430,6 @@ function ReviewWorkspace({
               >
                 <span className="review-order">{String(index + 1).padStart(2, "0")}</span>
                 <span className="review-item-copy"><b>{question.word}</b><small>{question.category}</small></span>
-                <Volume2 size={16} />
               </button>
             ))}
           </aside>
@@ -446,10 +442,6 @@ function ReviewWorkspace({
                   <p className="review-word">{selectedQuestion.word}</p>
                   <p className="review-meaning">{selectedQuestion.hint}</p>
                 </div>
-                <button type="button" className="speak-button" onClick={onPlay} aria-label={`播放 ${selectedQuestion.word} 的發音`}>
-                  <Volume2 size={19} />
-                  <span>聽發音</span>
-                </button>
               </div>
               <div className="full-sentence" lang="en">{selectedQuestion.sentence}</div>
 
@@ -472,7 +464,6 @@ function ReviewWorkspace({
                           type="text"
                           value={spellingPractice[index] ?? ""}
                           onChange={(event) => onSpellingChange(index, event.target.value.replace(/[^a-zA-Z]/g, ""))}
-                          placeholder={`請寫 ${selectedQuestion.word}`}
                           autoCapitalize="none"
                           autoCorrect="off"
                           spellCheck={false}
@@ -506,6 +497,7 @@ export default function Home() {
   const currentRoundIds = record.currentRoundIds.length ? record.currentRoundIds : QUESTION_IDS;
   const activeIndex = currentRoundIds.indexOf(activeQuestion.id);
   const isLastQuestion = activeIndex === currentRoundIds.length - 1;
+  const isRoundComplete = currentRoundIds.length > 0 && currentRoundIds.every((id) => record.currentRoundCompletedIds.includes(id));
   const answerProgress = record.questions[activeQuestion.id];
   const roundMistakeIds = currentRoundIds.filter(
     (id) => record.currentRoundCompletedIds.includes(id) && record.questions[id]?.lastStatus === "incorrect",
@@ -539,29 +531,20 @@ export default function Home() {
     setViewMode("practice");
   }
 
-  function playPronunciation(question: Question) {
-    if (!("speechSynthesis" in window)) return;
-    const synthesizer = window.speechSynthesis;
-    synthesizer.cancel();
-    const utterance = new SpeechSynthesisUtterance(`${question.word}. ${question.sentence}`);
-    utterance.lang = "en-US";
-    utterance.rate = 0.78;
-    utterance.pitch = 1;
-    const englishVoice = synthesizer.getVoices().find((voice) => /^en([-_]|$)/i.test(voice.lang));
-    if (englishVoice) utterance.voice = englishVoice;
-    if (synthesizer.paused) synthesizer.resume();
-    synthesizer.speak(utterance);
-  }
-
   function openReviewQuestion(questionId: string) {
-    const question = questionById.get(questionId);
-    if (!question) return;
+    if (!isRoundComplete) {
+      selectQuestion(questionId);
+      return;
+    }
     setReviewQuestionId(questionId);
     setViewMode("review");
-    playPronunciation(question);
   }
 
   function openRoundReview() {
+    if (!isRoundComplete) {
+      continueRound();
+      return;
+    }
     setViewMode("review");
     const firstMistake = roundMistakeIds[0];
     if (firstMistake) {
@@ -583,10 +566,10 @@ export default function Home() {
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (feedback) {
-      if (isLastQuestion) {
+      if (isRoundComplete) {
         openRoundReview();
       } else {
-        nextQuestion();
+        continueRound();
       }
       return;
     }
@@ -609,6 +592,15 @@ export default function Home() {
   function nextQuestion() {
     const nextId = currentRoundIds[(Math.max(activeIndex, 0) + 1) % currentRoundIds.length];
     selectQuestion(nextId);
+  }
+
+  function continueRound() {
+    const nextUncompletedId = currentRoundIds.find((id) => !record.currentRoundCompletedIds.includes(id));
+    if (nextUncompletedId) {
+      selectQuestion(nextUncompletedId);
+      return;
+    }
+    nextQuestion();
   }
 
   return (
@@ -699,9 +691,9 @@ export default function Home() {
                 <span id="answer-help" className="enter-hint">按 Enter 送出</span>
               </div>
               <div className="form-actions">
-                {(!feedback || !isLastQuestion) && (
+                {(!feedback || !isRoundComplete) && (
                   <button type="submit" className="submit-button">
-                    {feedback ? "按 Enter 前往下一題" : "提交並批改"} <ArrowRight size={18} />
+                    {feedback ? "按 Enter 繼續作答" : "提交並批改"} <ArrowRight size={18} />
                   </button>
                 )}
                 {feedback && (
@@ -713,9 +705,9 @@ export default function Home() {
                     <button
                       type="button"
                       className="continue-button"
-                      onClick={isLastQuestion ? openRoundReview : nextQuestion}
+                      onClick={isRoundComplete ? openRoundReview : continueRound}
                     >
-                      {isLastQuestion ? "進入本輪檢討" : `下一題 ${activeIndex + 2} / ${currentRoundIds.length}`}
+                      {isRoundComplete ? "進入本輪檢討" : "繼續完成尚未作答的題目"}
                       <ChevronRight size={18} />
                     </button>
                   </>
@@ -730,7 +722,7 @@ export default function Home() {
 
           </article>
 
-          <MistakeBook record={record} onFocus={openReviewQuestion} />
+          <MistakeBook record={record} onFocus={selectQuestion} />
         </section>
 
         <section className="strategy-section" aria-labelledby="strategy-title">
@@ -749,7 +741,6 @@ export default function Home() {
           selectedQuestion={reviewQuestion}
           spellingPractice={reviewQuestion ? spellingPractice[reviewQuestion.id] ?? [] : []}
           onSelect={openReviewQuestion}
-          onPlay={() => reviewQuestion && playPronunciation(reviewQuestion)}
           onSpellingChange={updateSpellingPractice}
           onStartNewRound={handleNewRound}
           onBackToPractice={() => setViewMode("practice")}
