@@ -1,0 +1,20 @@
+/* TOEFL Word Lab — 檢討工作紙快速切題控制。 */
+.review-next-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .42rem;
+  min-height: 48px;
+  margin-top: .85rem;
+  padding: .65rem .95rem;
+  color: #fffdf8;
+  background: #1b3855;
+  border: 1px solid #1b3855;
+  box-shadow: 3px 3px 0 #c7d3d8;
+  font-size: .8rem;
+  font-weight: 700;
+  transition: transform 160ms cubic-bezier(.23,1,.32,1), box-shadow 160ms cubic-bezier(.23,1,.32,1);
+}
+.review-next-button:hover { transform: translate(-1px,-1px); box-shadow: 4px 4px 0 #b7c5cc; }
+.review-next-button:active { transform: scale(.97); box-shadow: 1px 1px 0 #b7c5cc; }
+@media (max-width: 760px) { .review-next-button { width: 100%; min-height: 52px; font-size: .9rem; } }

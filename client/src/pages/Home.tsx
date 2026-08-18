@@ -1,8 +1,9 @@
 /**
  * TOEFL Word Lab — 校對工作桌風格：暖紙、墨藍、朱橘校對記號；手機版採單欄學習軸。
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import "../review-overrides.css";
+import "../review-quickflow.css";
 import {
   ArrowRight,
   BookOpenCheck,
@@ -396,6 +397,7 @@ function ReviewWorkspace({
   onStartNewRound,
   onBackToPractice,
   onFinishReview,
+  onNextReviewQuestion,
 }: {
   reviewItems: Question[];
   selectedQuestion: Question | undefined;
@@ -407,8 +409,22 @@ function ReviewWorkspace({
   onStartNewRound: () => void;
   onBackToPractice: () => void;
   onFinishReview: () => void;
+  onNextReviewQuestion: () => void;
 }) {
   const hasItems = reviewItems.length > 0;
+  const spellingInputRefs = useRef<Array<HTMLInputElement | null>>([]);
+
+  function handleSpellingInput(index: number, rawValue: string) {
+    const value = rawValue.replace(/[^a-zA-Z]/g, "");
+    onSpellingChange(index, value);
+    if (selectedQuestion && value.length >= selectedQuestion.word.length && index < 9) {
+      window.setTimeout(() => spellingInputRefs.current[index + 1]?.focus(), 0);
+    }
+  }
+
+  function focusNextSpelling(index: number) {
+    if (index < 9) spellingInputRefs.current[index + 1]?.focus();
+  }
 
   return (
     <main className="review-page">
@@ -470,6 +486,11 @@ function ReviewWorkspace({
                 </div>
               </div>
               <div className="full-sentence" lang="en">{selectedQuestion.sentence}</div>
+              {reviewItems.length > 1 && (
+                <button type="button" className="review-next-button" onClick={onNextReviewQuestion}>
+                  下一個錯題 <ChevronRight size={18} />
+                </button>
+              )}
 
               <section className="spelling-practice" aria-labelledby="spelling-title">
                 <div className="spelling-heading">
@@ -487,9 +508,16 @@ function ReviewWorkspace({
                       <label key={index} className={`spelling-line is-${hint.state}`}>
                         <span>{index + 1}</span>
                         <input
+                          ref={(element) => { spellingInputRefs.current[index] = element; }}
                           type="text"
                           value={spellingPractice[index] ?? ""}
-                          onChange={(event) => onSpellingChange(index, event.target.value.replace(/[^a-zA-Z]/g, ""))}
+                          onChange={(event) => handleSpellingInput(index, event.target.value)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter") {
+                              event.preventDefault();
+                              focusNextSpelling(index);
+                            }
+                          }}
                           autoCapitalize="none"
                           autoCorrect="off"
                           spellCheck={false}
@@ -615,6 +643,13 @@ export default function Home() {
       next[index] = value;
       return { ...current, [reviewQuestion.id]: next };
     });
+  }
+
+  function nextReviewQuestion() {
+    if (reviewItems.length < 2) return;
+    const currentIndex = reviewItems.findIndex((question) => question.id === reviewQuestion?.id);
+    const nextQuestion = reviewItems[(Math.max(currentIndex, 0) + 1) % reviewItems.length];
+    setReviewQuestionId(nextQuestion.id);
   }
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -802,6 +837,7 @@ export default function Home() {
           onStartNewRound={handleNewRound}
           onBackToPractice={() => setViewMode("practice")}
           onFinishReview={finishReview}
+          onNextReviewQuestion={nextReviewQuestion}
         />
       )}
       <footer>TOEFL WORD LAB <span>·</span> 你的作答紀錄只保存在目前使用的瀏覽器中</footer>
