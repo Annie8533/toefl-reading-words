@@ -2,6 +2,7 @@
  * TOEFL Word Lab — 校對工作桌風格：暖紙、墨藍、朱橘校對記號；手機版採單欄學習軸。
  */
 import { useEffect, useMemo, useState } from "react";
+import "../review-overrides.css";
 import {
   ArrowRight,
   BookOpenCheck,
@@ -143,6 +144,116 @@ const QUESTIONS: Question[] = [
     sentence: "Trade routes contribute to the growth of cities.",
     hint: "促成、貢獻於某件事。",
   },
+  {
+    id: "toefl-051",
+    category: "自然科學類",
+    word: "adapt",
+    prefix: "ad",
+    missing: "apt",
+    before: "Plants must ",
+    after: " to changes in their environment.",
+    sentence: "Plants must adapt to changes in their environment.",
+    hint: "適應新的條件或環境。",
+  },
+  {
+    id: "toefl-052",
+    category: "社會科學類",
+    word: "diminish",
+    prefix: "di",
+    missing: "minish",
+    before: "The influence of the old system began to ",
+    after: ".",
+    sentence: "The influence of the old system began to diminish.",
+    hint: "逐漸減少、減弱。",
+  },
+  {
+    id: "toefl-053",
+    category: "歷史與社會類",
+    word: "establish",
+    prefix: "es",
+    missing: "tablish",
+    before: "The settlers sought to ",
+    after: " a permanent community.",
+    sentence: "The settlers sought to establish a permanent community.",
+    hint: "建立、創立制度或組織。",
+  },
+  {
+    id: "toefl-054",
+    category: "人文與藝術類",
+    word: "insight",
+    prefix: "in",
+    missing: "sight",
+    before: "The letters provide valuable ",
+    after: " into the author's ideas.",
+    sentence: "The letters provide valuable insight into the author's ideas.",
+    hint: "對問題的深入理解或洞見。",
+  },
+  {
+    id: "toefl-055",
+    category: "自然科學類",
+    word: "sequence",
+    prefix: "se",
+    missing: "quence",
+    before: "DNA stores information in a specific ",
+    after: ".",
+    sentence: "DNA stores information in a specific sequence.",
+    hint: "依一定順序排列的一連串事物。",
+  },
+  {
+    id: "toefl-056",
+    category: "社會科學類",
+    word: "sufficient",
+    prefix: "su",
+    missing: "fficient",
+    before: "The evidence was ",
+    after: " to support the conclusion.",
+    sentence: "The evidence was sufficient to support the conclusion.",
+    hint: "足夠的、充分的。",
+  },
+  {
+    id: "toefl-057",
+    category: "自然科學類",
+    word: "variable",
+    prefix: "va",
+    missing: "riable",
+    before: "Temperature is an important ",
+    after: " in the experiment.",
+    sentence: "Temperature is an important variable in the experiment.",
+    hint: "可改變或測量的因素。",
+  },
+  {
+    id: "toefl-058",
+    category: "歷史與社會類",
+    word: "decline",
+    prefix: "de",
+    missing: "cline",
+    before: "The city experienced a gradual ",
+    after: " in population.",
+    sentence: "The city experienced a gradual decline in population.",
+    hint: "逐漸下降、衰退。",
+  },
+  {
+    id: "toefl-059",
+    category: "人文與藝術類",
+    word: "illustrate",
+    prefix: "il",
+    missing: "lustrate",
+    before: "The diagram helps ",
+    after: " the relationship between the ideas.",
+    sentence: "The diagram helps illustrate the relationship between the ideas.",
+    hint: "以例子、圖表說明或闡明。",
+  },
+  {
+    id: "toefl-060",
+    category: "社會科學類",
+    word: "transport",
+    prefix: "trans",
+    missing: "port",
+    before: "Railways made it easier to ",
+    after: " goods across regions.",
+    sentence: "Railways made it easier to transport goods across regions.",
+    hint: "運輸人員或物品。",
+  },
 ];
 
 const QUESTION_IDS = QUESTIONS.map((question) => question.id);
@@ -150,6 +261,16 @@ const STORAGE_NOTICE = "⚠️ 提醒：為確保能永久保存您的錯題紀�
 
 type Feedback = { kind: "correct" | "incorrect"; message: string } | null;
 type ViewMode = "practice" | "review";
+
+function getSpellingHint(word: string, value: string) {
+  const typed = value.toLowerCase();
+  if (!typed) return { state: "idle" as const, text: "" };
+  if (typed === word) return { state: "correct" as const, text: "正確" };
+  if (word.startsWith(typed)) return { state: "progress" as const, text: "繼續寫下去" };
+  const firstDifferentIndex = typed.split("").findIndex((character, index) => character !== word[index]);
+  const position = firstDifferentIndex >= 0 ? firstDifferentIndex + 1 : typed.length;
+  return { state: "incorrect" as const, text: `第 ${position} 個字母再確認一下` };
+}
 
 function QuestionMarker({
   number,
@@ -238,7 +359,7 @@ function MistakeBook({ record, onFocus }: { record: StudyRecord; onFocus: (id: s
             entries.map((entry) => (
               <button type="button" className="mistake-card" key={entry.id} onClick={() => onFocus(entry.id)}>
                 <span className="mistake-word">{entry.word}</span>
-                <span className="mistake-meta">錯 {entry.wrongCount} 次 · 權重 {entry.reviewWeight}</span>
+                <span className="mistake-meta">已收錄至錯題本</span>
                 <ChevronRight size={16} aria-hidden="true" />
               </button>
             ))
@@ -336,27 +457,31 @@ function ReviewWorkspace({
                 <div className="spelling-heading">
                   <span className="spelling-icon"><PenLine size={18} /></span>
                   <div>
-                    <p className="eyebrow"><span /> OPTIONAL PRACTICE</p>
-                    <h2 id="spelling-title">想練寫的話，就寫 5 遍。</h2>
-                    <p>這是自由練習區，不要求完成、不計次，也不會改變錯題本。</p>
+                    <p className="eyebrow"><span /> MORE PRACTICE</p>
+                    <h2 id="spelling-title">拼寫練寫練習區</h2>
+                    <p>這是自由練習區，請隨意拚打練習直到熟練。</p>
                   </div>
                 </div>
                 <div className="spelling-lines">
-                  {Array.from({ length: 5 }, (_, index) => (
-                    <label key={index}>
-                      <span>{index + 1}</span>
-                      <input
-                        type="text"
-                        value={spellingPractice[index] ?? ""}
-                        onChange={(event) => onSpellingChange(index, event.target.value.replace(/[^a-zA-Z]/g, ""))}
-                        placeholder={`請寫 ${selectedQuestion.word}`}
-                        autoCapitalize="none"
-                        autoCorrect="off"
-                        spellCheck={false}
-                        aria-label={`第 ${index + 1} 次拼寫 ${selectedQuestion.word}`}
-                      />
-                    </label>
-                  ))}
+                  {Array.from({ length: 10 }, (_, index) => {
+                    const hint = getSpellingHint(selectedQuestion.word, spellingPractice[index] ?? "");
+                    return (
+                      <label key={index} className={`spelling-line is-${hint.state}`}>
+                        <span>{index + 1}</span>
+                        <input
+                          type="text"
+                          value={spellingPractice[index] ?? ""}
+                          onChange={(event) => onSpellingChange(index, event.target.value.replace(/[^a-zA-Z]/g, ""))}
+                          placeholder={`請寫 ${selectedQuestion.word}`}
+                          autoCapitalize="none"
+                          autoCorrect="off"
+                          spellCheck={false}
+                          aria-label={`第 ${index + 1} 次拼寫 ${selectedQuestion.word}`}
+                        />
+                        <small aria-live="polite">{hint.text}</small>
+                      </label>
+                    );
+                  })}
                 </div>
               </section>
             </article>
@@ -416,11 +541,16 @@ export default function Home() {
 
   function playPronunciation(question: Question) {
     if (!("speechSynthesis" in window)) return;
-    window.speechSynthesis.cancel();
+    const synthesizer = window.speechSynthesis;
+    synthesizer.cancel();
     const utterance = new SpeechSynthesisUtterance(`${question.word}. ${question.sentence}`);
     utterance.lang = "en-US";
-    utterance.rate = 0.82;
-    window.speechSynthesis.speak(utterance);
+    utterance.rate = 0.78;
+    utterance.pitch = 1;
+    const englishVoice = synthesizer.getVoices().find((voice) => /^en([-_]|$)/i.test(voice.lang));
+    if (englishVoice) utterance.voice = englishVoice;
+    if (synthesizer.paused) synthesizer.resume();
+    synthesizer.speak(utterance);
   }
 
   function openReviewQuestion(questionId: string) {
@@ -444,7 +574,7 @@ export default function Home() {
   function updateSpellingPractice(index: number, value: string) {
     if (!reviewQuestion) return;
     setSpellingPractice((current) => {
-      const next = [...(current[reviewQuestion.id] ?? Array(5).fill(""))];
+      const next = [...(current[reviewQuestion.id] ?? Array(10).fill(""))];
       next[index] = value;
       return { ...current, [reviewQuestion.id]: next };
     });
@@ -569,9 +699,11 @@ export default function Home() {
                 <span id="answer-help" className="enter-hint">按 Enter 送出</span>
               </div>
               <div className="form-actions">
-                <button type="submit" className="submit-button">
-                  {feedback ? (isLastQuestion ? "按 Enter 前往本輪檢討" : "按 Enter 前往下一題") : "提交並批改"} <ArrowRight size={18} />
-                </button>
+                {(!feedback || !isLastQuestion) && (
+                  <button type="submit" className="submit-button">
+                    {feedback ? "按 Enter 前往下一題" : "提交並批改"} <ArrowRight size={18} />
+                  </button>
+                )}
                 {feedback && (
                   <>
                     <div className={`feedback ${feedback.kind}`} role="status">
@@ -583,7 +715,7 @@ export default function Home() {
                       className="continue-button"
                       onClick={isLastQuestion ? openRoundReview : nextQuestion}
                     >
-                      {isLastQuestion ? "完成本輪，前往檢討" : `下一題 ${activeIndex + 2} / ${currentRoundIds.length}`}
+                      {isLastQuestion ? "進入本輪檢討" : `下一題 ${activeIndex + 2} / ${currentRoundIds.length}`}
                       <ChevronRight size={18} />
                     </button>
                   </>

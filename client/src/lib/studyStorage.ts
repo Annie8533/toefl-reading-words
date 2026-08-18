@@ -47,7 +47,7 @@ export function createInitialRecord(questionIds: string[]): StudyRecord {
     totalAttempts: 0,
     totalCorrect: 0,
     seenQuestionIds: [],
-    currentRoundIds: questionIds,
+    currentRoundIds: questionIds.slice(0, 10),
     currentRoundCompletedIds: [],
     activeQuestionId: questionIds[0] ?? "",
     questions: {},
@@ -96,16 +96,33 @@ export function saveStudyRecord(record: StudyRecord): boolean {
 }
 
 export function createNewRound(record: StudyRecord, questionIds: string[]): StudyRecord {
-  const weighted = [...questionIds].sort((a, b) => {
-    const weightGap = (record.mistakes[b]?.reviewWeight ?? 0) - (record.mistakes[a]?.reviewWeight ?? 0);
-    return weightGap || a.localeCompare(b);
+  const isUnseen = (id: string) => !record.seenQuestionIds.includes(id);
+  const mistakeIds = questionIds.filter((id) => Boolean(record.mistakes[id]));
+  const unseenIds = questionIds.filter((id) => isUnseen(id) && !record.mistakes[id]);
+  const otherIds = questionIds.filter((id) => !record.mistakes[id] && !isUnseen(id));
+  const shuffle = <T,>(items: T[]) => [...items].sort(() => Math.random() - 0.5);
+
+  // 每一輪優先保留新題；錯題最多佔 40%，並以穿插方式分散，不會連續大量重複出現。
+  const targetCount = Math.min(10, questionIds.length);
+  const mistakeCount = Math.min(Math.floor(targetCount * 0.4), mistakeIds.length);
+  const freshPool = [...shuffle(unseenIds), ...shuffle(otherIds)];
+  const selectedMistakes = shuffle(mistakeIds).slice(0, mistakeCount);
+  const freshNeeded = targetCount - selectedMistakes.length;
+  const selectedFresh = freshPool.slice(0, freshNeeded);
+  const fallbackMistakes = shuffle(mistakeIds.filter((id) => !selectedMistakes.includes(id)));
+  const remainingCandidates = shuffle(questionIds.filter((id) => !selectedMistakes.includes(id) && !selectedFresh.includes(id)));
+  const baseRound = [...selectedFresh, ...fallbackMistakes, ...remainingCandidates].slice(0, freshNeeded);
+  const mixed = [...baseRound];
+  selectedMistakes.forEach((mistake, index) => {
+    const insertionIndex = Math.min(mixed.length, 1 + Math.floor(((index + 1) * (mixed.length + 1)) / (selectedMistakes.length + 1)));
+    mixed.splice(insertionIndex, 0, mistake);
   });
 
   return {
     ...record,
-    currentRoundIds: weighted,
+    currentRoundIds: mixed,
     currentRoundCompletedIds: [],
-    activeQuestionId: weighted[0] ?? "",
+    activeQuestionId: mixed[0] ?? "",
   };
 }
 

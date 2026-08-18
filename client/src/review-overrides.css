@@ -1,0 +1,12 @@
+/* TOEFL Word Lab — 本輪檢討拼寫區：十格、即時提示、暖紙校對色。 */
+.spelling-lines { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .55rem .85rem; }
+.spelling-line { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .1rem .35rem; min-width: 0; padding-bottom: .25rem; border-bottom: 1px solid #c9bda9; }
+.spelling-line > span { color: #c85a36; font-family: "IBM Plex Mono", monospace; font-size: .62rem; padding-top: .32rem; }
+.spelling-line small { grid-column: 2; min-height: .8rem; color: #77817a; font-size: .56rem; line-height: 1.2; }
+.spelling-line.is-progress { border-color: #b9c5bc; }
+.spelling-line.is-progress small { color: #496a5c; }
+.spelling-line.is-correct { border-color: #45806b; }
+.spelling-line.is-correct small { color: #1d6a4f; font-weight: 700; }
+.spelling-line.is-incorrect { border-color: #c85a36; }
+.spelling-line.is-incorrect small { color: #b1492c; }
+@media (max-width: 760px) { .spelling-lines { grid-template-columns: 1fr; gap: .38rem; }.spelling-line { min-height: 41px; } }
