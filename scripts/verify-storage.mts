@@ -1,6 +1,8 @@
 /** TOEFL Word Lab — 驗證 localStorage 學習紀錄資料流程。 */
 import {
+  completeCurrentRound,
   createInitialRecord,
+  createNewRound,
   loadStudyRecord,
   recordAttempt,
   saveStudyRecord,
@@ -58,4 +60,14 @@ assert(restored.mistakes[sample.id]?.reviewWeight === 1, "答對一次應降低�
 restored = recordAttempt(restored, sample, true);
 assert(!restored.mistakes[sample.id], "重複答對後應從錯題本移除已熟練題目");
 
-console.log("localStorage 學習紀錄驗證通過：錯題、進度、重載與複習降權皆符合預期。");
+const dailyIds = Array.from({ length: 10 }, (_, index) => `daily-${index + 1}`);
+let dailyRecord = createInitialRecord(dailyIds);
+dailyRecord = completeCurrentRound(dailyRecord);
+assert(dailyRecord.dailyProgress.completedRounds === 1, "完成檢討後應記錄今日第一組");
+assert(dailyRecord.dailyProgress.completedQuestions === 10, "完成檢討後應記錄今日十題");
+dailyRecord = createNewRound(dailyRecord, dailyIds);
+dailyRecord = completeCurrentRound(dailyRecord);
+assert(dailyRecord.dailyProgress.completedRounds === 2, "完成第二組後應達成每日兩組目標");
+assert(dailyRecord.dailyProgress.completedQuestions === 20, "完成第二組後應達成每日二十題目標");
+
+console.log("localStorage 學習紀錄驗證通過：錯題、進度、重載、複習降權與每日二十題目標皆符合預期。");

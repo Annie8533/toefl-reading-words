@@ -17,6 +17,7 @@ import {
   X,
 } from "lucide-react";
 import {
+  completeCurrentRound,
   createNewRound,
   loadStudyRecord,
   recordAttempt,
@@ -303,6 +304,16 @@ function Metric({ label, value, accent = false }: { label: string; value: string
   );
 }
 
+function DailyGoal({ rounds, questions }: { rounds: number; questions: number }) {
+  const isComplete = rounds >= 2;
+  return (
+    <div className={`daily-goal ${isComplete ? "is-complete" : ""}`} aria-label="每日兩組二十題練習目標">
+      <span>{isComplete ? "今日目標完成" : "今日目標"}</span>
+      <strong>{rounds}/2 組 · {questions}/20 題</strong>
+    </div>
+  );
+}
+
 function ProgressRail({ record, onSelect }: { record: StudyRecord; onSelect: (id: string) => void }) {
   const currentRound = record.currentRoundIds.length ? record.currentRoundIds : QUESTION_IDS;
   return (
@@ -378,18 +389,24 @@ function ReviewWorkspace({
   reviewItems,
   selectedQuestion,
   spellingPractice,
+  roundStats,
+  dailyProgress,
   onSelect,
   onSpellingChange,
   onStartNewRound,
   onBackToPractice,
+  onFinishReview,
 }: {
   reviewItems: Question[];
   selectedQuestion: Question | undefined;
   spellingPractice: string[];
+  roundStats: { answered: number; correct: number; incorrect: number; accuracy: number };
+  dailyProgress: { completedRounds: number; completedQuestions: number };
   onSelect: (id: string) => void;
   onSpellingChange: (index: number, value: string) => void;
   onStartNewRound: () => void;
   onBackToPractice: () => void;
+  onFinishReview: () => void;
 }) {
   const hasItems = reviewItems.length > 0;
 
@@ -407,6 +424,15 @@ function ReviewWorkspace({
             <RotateCcw size={15} /> 新的一輪
           </button>
         </div>
+      </section>
+
+      <section className="round-summary" aria-label="本輪成績摘要">
+        <div className="round-summary-title"><span>ROUND SUMMARY</span><strong>本輪成績</strong></div>
+        <div><span>完成題數</span><strong>{roundStats.answered}/10</strong></div>
+        <div><span>答對題數</span><strong>{roundStats.correct}</strong></div>
+        <div><span>正確率</span><strong>{roundStats.accuracy}%</strong></div>
+        <div><span>本輪錯題</span><strong className="metric-accent">{roundStats.incorrect}</strong></div>
+        <DailyGoal rounds={dailyProgress.completedRounds} questions={dailyProgress.completedQuestions} />
       </section>
 
       {!hasItems ? (
@@ -479,6 +505,16 @@ function ReviewWorkspace({
           )}
         </section>
       )}
+      <section className="review-completion">
+        <div>
+          <p className="eyebrow"><span /> REVIEW COMPLETE</p>
+          <h2>檢討完成，準備下一組。</h2>
+          <p>按下完成後，本輪會記入今日目標，並開啟下一組 10 題練習。</p>
+        </div>
+        <button type="button" className="review-finish-button" onClick={onFinishReview}>
+          完成檢討 <ArrowRight size={18} />
+        </button>
+      </section>
     </main>
   );
 }
@@ -506,6 +542,14 @@ export default function Home() {
     .map((id) => questionById.get(id))
     .filter((question): question is Question => Boolean(question));
   const reviewQuestion = questionById.get(reviewQuestionId) ?? reviewItems[0];
+  const roundCorrect = currentRoundIds.filter((id) => record.questions[id]?.lastStatus === "correct").length;
+  const roundAnswered = record.currentRoundCompletedIds.filter((id) => currentRoundIds.includes(id)).length;
+  const roundStats = {
+    answered: roundAnswered,
+    correct: roundCorrect,
+    incorrect: Math.max(roundAnswered - roundCorrect, 0),
+    accuracy: roundAnswered ? Math.round((roundCorrect / roundAnswered) * 100) : 0,
+  };
 
   useEffect(() => {
     document.title = "TOEFL Word Lab｜Complete the Words";
@@ -525,6 +569,16 @@ export default function Home() {
 
   function handleNewRound() {
     commit(createNewRound(record, QUESTION_IDS));
+    setAnswer("");
+    setFeedback(null);
+    setReviewQuestionId("");
+    setViewMode("practice");
+  }
+
+  function finishReview() {
+    const completedRecord = completeCurrentRound(record);
+    const nextRecord = createNewRound(completedRecord, QUESTION_IDS);
+    commit(nextRecord);
     setAnswer("");
     setFeedback(null);
     setReviewQuestionId("");
@@ -617,6 +671,7 @@ export default function Home() {
         </a>
         <div className="topbar-actions">
           <span className="desktop-mode"><i /> 錯題優先模式</span>
+          <DailyGoal rounds={record.dailyProgress.completedRounds} questions={record.dailyProgress.completedQuestions} />
           <button type="button" className="new-round-button" onClick={handleNewRound}>
             <RotateCcw size={15} />
             <span>新的練習</span>
@@ -640,7 +695,7 @@ export default function Home() {
         <section className="mobile-summary" aria-label="學習摘要">
           <div><span>本輪</span><strong>{record.currentRoundCompletedIds.length}/10</strong></div>
           <div><span>正確率</span><strong>{record.totalAttempts ? `${Math.round((record.totalCorrect / record.totalAttempts) * 100)}%` : "—"}</strong></div>
-          <div><span>錯題本</span><strong className="metric-accent">{Object.keys(record.mistakes).length}</strong></div>
+          <div><span>今日</span><strong className={record.dailyProgress.completedRounds >= 2 ? "metric-accent" : ""}>{record.dailyProgress.completedQuestions}/20</strong></div>
         </section>
 
         {!storageAvailable && (
@@ -740,10 +795,13 @@ export default function Home() {
           reviewItems={reviewItems}
           selectedQuestion={reviewQuestion}
           spellingPractice={reviewQuestion ? spellingPractice[reviewQuestion.id] ?? [] : []}
+          roundStats={roundStats}
+          dailyProgress={record.dailyProgress}
           onSelect={openReviewQuestion}
           onSpellingChange={updateSpellingPractice}
           onStartNewRound={handleNewRound}
           onBackToPractice={() => setViewMode("practice")}
+          onFinishReview={finishReview}
         />
       )}
       <footer>TOEFL WORD LAB <span>·</span> 你的作答紀錄只保存在目前使用的瀏覽器中</footer>

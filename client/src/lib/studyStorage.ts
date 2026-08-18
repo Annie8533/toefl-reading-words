@@ -27,6 +27,12 @@ export type MistakeEntry = QuestionSnapshot & {
   lastWrongAt: string;
 };
 
+export type DailyProgress = {
+  date: string;
+  completedRounds: number;
+  completedQuestions: number;
+};
+
 export type StudyRecord = {
   version: 1;
   totalAttempts: number;
@@ -35,11 +41,31 @@ export type StudyRecord = {
   currentRoundIds: string[];
   currentRoundCompletedIds: string[];
   activeQuestionId: string;
+  currentRoundReviewed: boolean;
+  dailyProgress: DailyProgress;
   questions: Record<string, QuestionProgress>;
   mistakes: Record<string, MistakeEntry>;
 };
 
 const STORAGE_KEY = "toefl-word-lab.study-record.v1";
+
+function todayKey() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}
+
+function createDailyProgress(): DailyProgress {
+  return { date: todayKey(), completedRounds: 0, completedQuestions: 0 };
+}
+
+function refreshDailyProgress(progress: DailyProgress | undefined): DailyProgress {
+  if (!progress || progress.date !== todayKey()) return createDailyProgress();
+  return {
+    date: progress.date,
+    completedRounds: Math.min(Math.max(progress.completedRounds ?? 0, 0), 2),
+    completedQuestions: Math.min(Math.max(progress.completedQuestions ?? 0, 0), 20),
+  };
+}
 
 export function createInitialRecord(questionIds: string[]): StudyRecord {
   return {
@@ -50,6 +76,8 @@ export function createInitialRecord(questionIds: string[]): StudyRecord {
     currentRoundIds: questionIds.slice(0, 10),
     currentRoundCompletedIds: [],
     activeQuestionId: questionIds[0] ?? "",
+    currentRoundReviewed: false,
+    dailyProgress: createDailyProgress(),
     questions: {},
     mistakes: {},
   };
@@ -78,6 +106,8 @@ export function loadStudyRecord(questionIds: string[]): StudyRecord {
       currentRoundIds: savedRound.length ? savedRound : questionIds,
       currentRoundCompletedIds: (parsed.currentRoundCompletedIds ?? []).filter((id) => available.has(id)),
       activeQuestionId,
+      currentRoundReviewed: Boolean(parsed.currentRoundReviewed),
+      dailyProgress: refreshDailyProgress(parsed.dailyProgress),
       questions: parsed.questions ?? {},
       mistakes: parsed.mistakes ?? {},
     };
@@ -123,6 +153,23 @@ export function createNewRound(record: StudyRecord, questionIds: string[]): Stud
     currentRoundIds: mixed,
     currentRoundCompletedIds: [],
     activeQuestionId: mixed[0] ?? "",
+    currentRoundReviewed: false,
+    dailyProgress: refreshDailyProgress(record.dailyProgress),
+  };
+}
+
+export function completeCurrentRound(record: StudyRecord): StudyRecord {
+  const dailyProgress = refreshDailyProgress(record.dailyProgress);
+  if (record.currentRoundReviewed) return { ...record, dailyProgress };
+
+  return {
+    ...record,
+    currentRoundReviewed: true,
+    dailyProgress: {
+      ...dailyProgress,
+      completedRounds: Math.min(2, dailyProgress.completedRounds + 1),
+      completedQuestions: Math.min(20, dailyProgress.completedQuestions + record.currentRoundIds.length),
+    },
   };
 }
 
@@ -171,6 +218,7 @@ export function recordAttempt(
 
   return {
     ...record,
+    dailyProgress: refreshDailyProgress(record.dailyProgress),
     totalAttempts: record.totalAttempts + 1,
     totalCorrect: record.totalCorrect + (isCorrect ? 1 : 0),
     seenQuestionIds: record.seenQuestionIds.includes(question.id)
