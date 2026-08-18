@@ -259,7 +259,9 @@ export default function Home() {
 
   const questionById = useMemo(() => new Map(QUESTIONS.map((question) => [question.id, question])), []);
   const activeQuestion = questionById.get(record.activeQuestionId) ?? QUESTIONS[0];
-  const activeIndex = (record.currentRoundIds.length ? record.currentRoundIds : QUESTION_IDS).indexOf(activeQuestion.id);
+  const currentRoundIds = record.currentRoundIds.length ? record.currentRoundIds : QUESTION_IDS;
+  const activeIndex = currentRoundIds.indexOf(activeQuestion.id);
+  const isLastQuestion = activeIndex === currentRoundIds.length - 1;
   const answerProgress = record.questions[activeQuestion.id];
 
   useEffect(() => {
@@ -285,6 +287,14 @@ export default function Home() {
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (feedback) {
+      if (isLastQuestion) {
+        handleNewRound();
+      } else {
+        nextQuestion();
+      }
+      return;
+    }
     const normalized = answer.trim().toLowerCase();
     if (!normalized) {
       setFeedback({ kind: "incorrect", message: "請先補上缺失字母，再送出校對。" });
@@ -302,8 +312,7 @@ export default function Home() {
   }
 
   function nextQuestion() {
-    const order = record.currentRoundIds.length ? record.currentRoundIds : QUESTION_IDS;
-    const nextId = order[(Math.max(activeIndex, 0) + 1) % order.length];
+    const nextId = currentRoundIds[(Math.max(activeIndex, 0) + 1) % currentRoundIds.length];
     selectQuestion(nextId);
   }
 
@@ -395,13 +404,23 @@ export default function Home() {
               </div>
               <div className="form-actions">
                 <button type="submit" className="submit-button">
-                  提交並批改 <ArrowRight size={18} />
+                  {feedback ? (isLastQuestion ? "按 Enter 開始新的練習" : "按 Enter 前往下一題") : "提交並批改"} <ArrowRight size={18} />
                 </button>
                 {feedback && (
-                  <div className={`feedback ${feedback.kind}`} role="status">
-                    {feedback.kind === "correct" ? <Check size={17} /> : <X size={17} />}
-                    <span>{feedback.message}</span>
-                  </div>
+                  <>
+                    <div className={`feedback ${feedback.kind}`} role="status">
+                      {feedback.kind === "correct" ? <Check size={17} /> : <X size={17} />}
+                      <span>{feedback.message}</span>
+                    </div>
+                    <button
+                      type="button"
+                      className="continue-button"
+                      onClick={isLastQuestion ? handleNewRound : nextQuestion}
+                    >
+                      {isLastQuestion ? "完成本輪，開始新的練習" : `下一題 ${activeIndex + 2} / ${currentRoundIds.length}`}
+                      <ChevronRight size={18} />
+                    </button>
+                  </>
                 )}
               </div>
             </form>
@@ -411,9 +430,6 @@ export default function Home() {
               <span>題庫 521 詞</span>
             </div>
 
-            <button type="button" className="next-question" onClick={nextQuestion}>
-              下一題 <ChevronRight size={17} />
-            </button>
           </article>
 
           <MistakeBook record={record} onFocus={selectQuestion} />
