@@ -781,9 +781,9 @@ export default function Home() {
                 <span id="answer-help" className="enter-hint">按 Enter 送出</span>
               </div>
               <div className="form-actions">
-                {(!feedback || !isRoundComplete) && (
+                {!feedback && (
                   <button type="submit" className="submit-button">
-                    {feedback ? "按 Enter 繼續作答" : "提交並批改"} <ArrowRight size={18} />
+                    提交並批改 <ArrowRight size={18} />
                   </button>
                 )}
                 {feedback && (
