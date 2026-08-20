@@ -77,3 +77,8 @@
 - [x] 定位並移除首頁用於記住測試碼解鎖狀態的 localStorage 邏輯。
 - [x] 確保重新載入首頁後一律顯示驗證碼輸入畫面。
 - [x] 驗證輸入正確測試碼後仍可正常讀取 Firestore 題庫。
+- [x] 匯出並檢查 521 題目前的 prefix、missing、before、after 與 sentence 資料。
+- [x] 以單字完整長度重建填空切分，確保 prefix + missing 恰為完整單字。
+- [x] 驗證例句中只將該單字遮罩為 prefix + 正確長度的底線，不殘留後綴。
+- [x] 批次更新 Firestore 521 題並重新鎖定寫入規則。
+- [x] 抽樣驗證 consumer、cell 與全題庫品質檢查結果。

@@ -28,13 +28,18 @@ def read_paragraphs(docx_path: Path) -> list[str]:
     return paragraphs
 
 
-def split_sentence(word: str, sentence: str) -> tuple[str, str, str]:
+def split_sentence(word: str, sentence: str) -> tuple[str, str, str, str]:
     match = re.search(re.escape(word), sentence, re.IGNORECASE)
     if not match:
         raise ValueError(f"Target word not found in sentence: {word} :: {sentence}")
     displayed = sentence[match.start():match.end()]
     revealed_length = max(1, min(len(displayed) - 1, (len(displayed) + 2) // 3))
-    return sentence[:match.start()], displayed[:revealed_length], sentence[match.start() + revealed_length:]
+    return (
+        sentence[:match.start()],
+        displayed[:revealed_length],
+        displayed[revealed_length:],
+        sentence[match.end():],
+    )
 
 
 def extract_questions(paragraphs: list[str]) -> list[dict[str, object]]:
@@ -51,7 +56,7 @@ def extract_questions(paragraphs: list[str]) -> list[dict[str, object]]:
         missing = [field for field in required if not current.get(field)]
         if missing:
             raise ValueError(f"Incomplete entry {current.get('number', '?')}: missing {', '.join(missing)}")
-        before, prefix, after = split_sentence(current["word"], current["sentence"])
+        before, prefix, missing, after = split_sentence(current["word"], current["sentence"])
         order = len(questions) + 1
         identifier = f"q{order:03d}"
         questions.append(
@@ -61,7 +66,7 @@ def extract_questions(paragraphs: list[str]) -> list[dict[str, object]]:
                 "category": "／".join(part for part in (major_category, sub_category) if part),
                 "word": current["word"],
                 "prefix": prefix,
-                "missing": after[:0] + current["sentence"][len(before) + len(prefix):len(before) + len(prefix) + (len(current["word"]) - len(prefix))],
+                "missing": missing,
                 "before": before,
                 "after": after,
                 "sentence": current["sentence"],
