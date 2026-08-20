@@ -27,6 +27,7 @@ import {
   type QuestionSnapshot,
   type StudyRecord,
 } from "@/lib/studyStorage";
+import { loadProtectedQuestions, unlockDemoSession } from "@/lib/firebase";
 
 type Question = QuestionSnapshot & {
   before: string;
@@ -34,7 +35,7 @@ type Question = QuestionSnapshot & {
   hint: string;
 };
 
-const QUESTIONS: Question[] = [
+const QUESTIONS: Question[] = []; /* 題庫資料已遷移至 Firestore，這段舊資料不會編譯至前端執行檔。
   {
     id: "toefl-041",
     category: "自然科學類",
@@ -255,10 +256,10 @@ const QUESTIONS: Question[] = [
     sentence: "Railways made it easier to transport goods across regions.",
     hint: "運輸人員或物品。",
   },
-];
-
-const QUESTION_IDS = QUESTIONS.map((question) => question.id);
+*/
 const STORAGE_NOTICE = "⚠️ 提醒：為確保能永久保存您的錯題紀錄，請點擊右上角選單，選擇【在 Safari / Chrome 中開啟】。請勿使用 LINE 或 IG 內建瀏覽器，也請勿使用無痕模式。";
+const ACCESS_STORAGE_KEY = "toefl-word-lab.demo-access.v1";
+const EMPTY_QUESTION: Question = { id: "", category: "", word: "", prefix: "", missing: "", before: "", after: "", sentence: "", hint: "" };
 
 type Feedback = { kind: "correct" | "incorrect"; message: string } | null;
 type ViewMode = "practice" | "review";
@@ -315,8 +316,8 @@ function DailyGoal({ rounds, questions }: { rounds: number; questions: number })
   );
 }
 
-function ProgressRail({ record, onSelect }: { record: StudyRecord; onSelect: (id: string) => void }) {
-  const currentRound = record.currentRoundIds.length ? record.currentRoundIds : QUESTION_IDS;
+function ProgressRail({ record, questionIds, onSelect }: { record: StudyRecord; questionIds: string[]; onSelect: (id: string) => void }) {
+  const currentRound = record.currentRoundIds.length ? record.currentRoundIds : questionIds;
   return (
     <aside className="progress-rail" aria-label="作答進度">
       <div className="rail-heading">
@@ -548,17 +549,22 @@ function ReviewWorkspace({
 }
 
 export default function Home() {
-  const [record, setRecord] = useState<StudyRecord>(() => loadStudyRecord(QUESTION_IDS));
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [record, setRecord] = useState<StudyRecord>(() => loadStudyRecord([]));
   const [answer, setAnswer] = useState("");
   const [feedback, setFeedback] = useState<Feedback>(null);
   const [storageAvailable, setStorageAvailable] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>("practice");
   const [reviewQuestionId, setReviewQuestionId] = useState("");
   const [spellingPractice, setSpellingPractice] = useState<Record<string, string[]>>({});
+  const [accessCode, setAccessCode] = useState("");
+  const [accessState, setAccessState] = useState<"locked" | "loading" | "unlocked" | "error">("locked");
+  const [accessError, setAccessError] = useState("");
 
-  const questionById = useMemo(() => new Map(QUESTIONS.map((question) => [question.id, question])), []);
-  const activeQuestion = questionById.get(record.activeQuestionId) ?? QUESTIONS[0];
-  const currentRoundIds = record.currentRoundIds.length ? record.currentRoundIds : QUESTION_IDS;
+  const questionIds = useMemo(() => questions.map((question) => question.id), [questions]);
+  const questionById = useMemo(() => new Map(questions.map((question) => [question.id, question])), [questions]);
+  const activeQuestion = questionById.get(record.activeQuestionId) ?? questions[0] ?? EMPTY_QUESTION;
+  const currentRoundIds = record.currentRoundIds.length ? record.currentRoundIds : questionIds;
   const activeIndex = currentRoundIds.indexOf(activeQuestion.id);
   const isLastQuestion = activeIndex === currentRoundIds.length - 1;
   const isRoundComplete = currentRoundIds.length > 0 && currentRoundIds.every((id) => record.currentRoundCompletedIds.includes(id));
@@ -583,6 +589,35 @@ export default function Home() {
     document.title = "TOEFL Word Lab｜Complete the Words";
   }, []);
 
+  async function grantDemoAccess(code = accessCode) {
+    if (code.trim().toUpperCase() !== "DEMO2026") {
+      setAccessError("測試碼不正確，請確認後再試一次。");
+      setAccessState("error");
+      return;
+    }
+    setAccessError("");
+    setAccessState("loading");
+    try {
+      await unlockDemoSession();
+      const loadedQuestions = await loadProtectedQuestions();
+      if (!loadedQuestions.length) throw new Error("題庫目前沒有可用題目。");
+      const nextQuestions = loadedQuestions.map(({ order: _order, active: _active, ...question }) => question as Question);
+      const nextIds = nextQuestions.map((question) => question.id);
+      setQuestions(nextQuestions);
+      setRecord(loadStudyRecord(nextIds));
+      window.localStorage.setItem(ACCESS_STORAGE_KEY, "demo");
+      setAccessState("unlocked");
+    } catch (error) {
+      const code = typeof error === "object" && error && "code" in error ? String(error.code) : "unknown";
+      setAccessError(`題庫尚未開放或無法讀取（${code}）。請稍後再試。`);
+      setAccessState("error");
+    }
+  }
+
+  useEffect(() => {
+    if (window.localStorage.getItem(ACCESS_STORAGE_KEY) === "demo") grantDemoAccess("DEMO2026");
+  }, []);
+
   function commit(nextRecord: StudyRecord) {
     setRecord(nextRecord);
     setStorageAvailable(saveStudyRecord(nextRecord));
@@ -596,7 +631,7 @@ export default function Home() {
   }
 
   function handleNewRound() {
-    commit(createNewRound(record, QUESTION_IDS));
+    commit(createNewRound(record, questionIds));
     setAnswer("");
     setFeedback(null);
     setReviewQuestionId("");
@@ -605,7 +640,7 @@ export default function Home() {
 
   function finishReview() {
     const completedRecord = completeCurrentRound(record);
-    const nextRecord = createNewRound(completedRecord, QUESTION_IDS);
+    const nextRecord = createNewRound(completedRecord, questionIds);
     commit(nextRecord);
     setAnswer("");
     setFeedback(null);
@@ -692,6 +727,27 @@ export default function Home() {
     nextQuestion();
   }
 
+  if (accessState !== "unlocked" || !questions.length) {
+    return (
+      <main className="access-gate">
+        <section className="access-card" aria-labelledby="access-title">
+          <p className="eyebrow"><span /> TOEFL WORD LAB · PREVIEW ACCESS</p>
+          <h1 id="access-title">先完成驗證，<br /><em>再開啟題庫。</em></h1>
+          <p>題目不會寫入此網頁的前端程式，而是在驗證成功後，才從受保護的雲端題庫讀取。</p>
+          <form onSubmit={(event) => { event.preventDefault(); grantDemoAccess(); }}>
+            <label htmlFor="demo-access-code">測試驗證碼</label>
+            <input id="demo-access-code" value={accessCode} onChange={(event) => setAccessCode(event.target.value)} placeholder="輸入測試碼" autoCapitalize="characters" autoComplete="off" />
+            {accessError && <p className="access-error" role="alert">{accessError}</p>}
+            <button type="submit" className="continue-button" disabled={accessState === "loading"}>
+              {accessState === "loading" ? "正在開啟題庫…" : "驗證並開啟題庫"} <ArrowRight size={18} />
+            </button>
+          </form>
+          <small>測試期間請輸入：<b>DEMO2026</b>。正式上線後，此處會改接 Lemon Squeezy 購買權限。</small>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <div className="app-shell" id="top">
       <div className="storage-alert" role="note">
@@ -701,7 +757,7 @@ export default function Home() {
 
       <header className="topbar">
         <a className="brand" href="#top" aria-label="TOEFL Word Lab 首頁">
-          <img src="/manus-storage/toefl-word-lab-mark_c2dc9ad2.png" alt="" />
+          <img src="https://toeflword-fscafzim.manus.space/manus-storage/toefl-word-lab-mark_c2dc9ad2.png" alt="" />
           <span><b>TOEFL</b> WORD LAB</span>
         </a>
         <div className="topbar-actions">
@@ -741,7 +797,7 @@ export default function Home() {
         )}
 
         <section className="workspace" aria-label="單字練習工作區">
-          <ProgressRail record={record} onSelect={selectQuestion} />
+          <ProgressRail record={record} questionIds={questionIds} onSelect={selectQuestion} />
 
           <article className="worksheet">
             <div className="worksheet-head">

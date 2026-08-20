@@ -1,0 +1,30 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // 題庫僅提供已建立 Firebase 工作階段的使用者讀取；前端沒有寫入權限。
+    match /courses/{courseId} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
+    match /courses/{courseId}/questions/{questionId} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
+    // 未來 Lemon Squeezy webhook 可由受信任伺服器寫入 entitlement；前端只能讀自己的權限。
+    match /entitlements/{userId} {
+      allow read: if signedIn() && request.auth.uid == userId;
+      allow write: if false;
+    }
+
+    match /users/{userId} {
+      allow read, create, update: if signedIn() && request.auth.uid == userId;
+      allow delete: if false;
+    }
+  }
+}

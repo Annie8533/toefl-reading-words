@@ -18,3 +18,34 @@
 .review-next-button:hover { transform: translate(-1px,-1px); box-shadow: 4px 4px 0 #b7c5cc; }
 .review-next-button:active { transform: scale(.97); box-shadow: 1px 1px 0 #b7c5cc; }
 @media (max-width: 760px) { .review-next-button { width: 100%; min-height: 52px; font-size: .9rem; } }
+
+/* Firebase 題庫解鎖頁：保持紙本練習風格，但在載入題庫前清楚提示驗證流程。 */
+.access-gate {
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  padding: clamp(1.5rem, 5vw, 4rem);
+  background:
+    linear-gradient(90deg, rgb(201 83 43 / 7%) 1px, transparent 1px),
+    linear-gradient(rgb(201 83 43 / 6%) 1px, transparent 1px),
+    #f6f2e9;
+  background-size: 28px 28px;
+}
+.access-card {
+  width: min(100%, 42rem);
+  padding: clamp(1.75rem, 5vw, 4.25rem);
+  color: #183752;
+  background: rgb(255 254 250 / 94%);
+  border: 1px solid rgb(24 55 82 / 16%);
+  border-top: 5px solid #cf5f36;
+  box-shadow: 10px 12px 0 rgb(24 55 82 / 12%);
+}
+.access-card h1 { margin: .75rem 0 1rem; font-family: "Noto Serif TC", serif; font-size: clamp(2rem, 6vw, 4rem); line-height: 1.12; }
+.access-card h1 em { color: #cf5f36; font-style: normal; }
+.access-card > p { max-width: 34rem; font-size: clamp(1rem, 2.4vw, 1.25rem); line-height: 1.8; }
+.access-card form { display: grid; gap: .7rem; margin: 2rem 0 1rem; }
+.access-card label { font-weight: 800; font-size: 1rem; }
+.access-card input { min-height: 3.6rem; padding: .75rem 1rem; font: 700 1.2rem/1.2 "IBM Plex Mono", monospace; letter-spacing: .08em; color: #183752; background: #fffdfa; border: 2px solid #183752; }
+.access-card .continue-button { justify-content: center; min-height: 3.6rem; }
+.access-card small { display: block; color: #617180; line-height: 1.6; }
+.access-error { margin: 0; color: #a53d28; font-weight: 700; }
