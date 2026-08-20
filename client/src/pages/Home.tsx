@@ -731,18 +731,15 @@ export default function Home() {
     return (
       <main className="access-gate">
         <section className="access-card" aria-labelledby="access-title">
-          <p className="eyebrow"><span /> TOEFL WORD LAB · PREVIEW ACCESS</p>
-          <h1 id="access-title">先完成驗證，<br /><em>再開啟題庫。</em></h1>
-          <p>題目不會寫入此網頁的前端程式，而是在驗證成功後，才從受保護的雲端題庫讀取。</p>
+          <h1 id="access-title">新托福閱讀填空練習網站</h1>
+          <p>輸入驗證碼後可以開啟題庫</p>
           <form onSubmit={(event) => { event.preventDefault(); grantDemoAccess(); }}>
-            <label htmlFor="demo-access-code">測試驗證碼</label>
-            <input id="demo-access-code" value={accessCode} onChange={(event) => setAccessCode(event.target.value)} placeholder="輸入測試碼" autoCapitalize="characters" autoComplete="off" />
+            <input id="demo-access-code" aria-label="驗證碼" value={accessCode} onChange={(event) => setAccessCode(event.target.value)} placeholder="輸入驗證碼" autoCapitalize="characters" autoComplete="off" />
             {accessError && <p className="access-error" role="alert">{accessError}</p>}
             <button type="submit" className="continue-button" disabled={accessState === "loading"}>
-              {accessState === "loading" ? "正在開啟題庫…" : "驗證並開啟題庫"} <ArrowRight size={18} />
+              {accessState === "loading" ? "正在開啟題庫…" : "開啟題庫"} <ArrowRight size={18} />
             </button>
           </form>
-          <small>測試期間請輸入：<b>DEMO2026</b>。正式上線後，此處會改接 Lemon Squeezy 購買權限。</small>
         </section>
       </main>
     );
