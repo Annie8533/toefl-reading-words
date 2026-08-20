@@ -100,16 +100,20 @@ export function loadStudyRecord(questionIds: string[]): StudyRecord {
 
     const available = new Set(questionIds);
     const savedRound = (parsed.currentRoundIds ?? []).filter((id) => available.has(id));
-    const activeQuestionId = available.has(parsed.activeQuestionId ?? "")
+    const hasCompatibleSavedRound = savedRound.length > 0;
+    const currentRoundIds = hasCompatibleSavedRound ? savedRound : fallback.currentRoundIds;
+    const activeQuestionId = currentRoundIds.includes(parsed.activeQuestionId ?? "")
       ? (parsed.activeQuestionId as string)
-      : savedRound[0] ?? questionIds[0] ?? "";
+      : currentRoundIds[0] ?? "";
 
     return {
       ...fallback,
       ...parsed,
       seenQuestionIds: (parsed.seenQuestionIds ?? []).filter((id) => available.has(id)),
-      currentRoundIds: savedRound.length ? savedRound : questionIds,
-      currentRoundCompletedIds: (parsed.currentRoundCompletedIds ?? []).filter((id) => available.has(id)),
+      currentRoundIds,
+      currentRoundCompletedIds: hasCompatibleSavedRound
+        ? (parsed.currentRoundCompletedIds ?? []).filter((id) => currentRoundIds.includes(id))
+        : [],
       activeQuestionId,
       currentRoundReviewed: Boolean(parsed.currentRoundReviewed),
       roundNumber: Math.max(Number(parsed.roundNumber ?? 1), 1),
