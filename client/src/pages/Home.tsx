@@ -258,7 +258,6 @@ const QUESTIONS: Question[] = []; /* 題庫資料已遷移至 Firestore，這段
   },
 */
 const STORAGE_NOTICE = "⚠️ 提醒：為確保能永久保存您的錯題紀錄，請點擊右上角選單，選擇【在 Safari / Chrome 中開啟】。請勿使用 LINE 或 IG 內建瀏覽器，也請勿使用無痕模式。";
-const ACCESS_STORAGE_KEY = "toefl-word-lab.demo-access.v1";
 const EMPTY_QUESTION: Question = { id: "", category: "", word: "", prefix: "", missing: "", before: "", after: "", sentence: "", hint: "" };
 
 type Feedback = { kind: "correct" | "incorrect"; message: string } | null;
@@ -605,7 +604,6 @@ export default function Home() {
       const nextIds = nextQuestions.map((question) => question.id);
       setQuestions(nextQuestions);
       setRecord(loadStudyRecord(nextIds));
-      window.localStorage.setItem(ACCESS_STORAGE_KEY, "demo");
       setAccessState("unlocked");
     } catch (error) {
       const code = typeof error === "object" && error && "code" in error ? String(error.code) : "unknown";
@@ -613,10 +611,6 @@ export default function Home() {
       setAccessState("error");
     }
   }
-
-  useEffect(() => {
-    if (window.localStorage.getItem(ACCESS_STORAGE_KEY) === "demo") grantDemoAccess("DEMO2026");
-  }, []);
 
   function commit(nextRecord: StudyRecord) {
     setRecord(nextRecord);
