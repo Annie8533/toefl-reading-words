@@ -33,18 +33,21 @@
 - [x] 定位批改後「按 Enter 繼續作答」與「繼續完成尚未作答的題目」同時出現的渲染條件。
 - [x] 改為一般題僅顯示「繼續作答」，第十題完成時僅顯示「進入本輪檢討」。
 - [x] 驗證一般題與第十題在桌面及手機版皆只顯示一個下一步按鈕。
-- [ ] 檢查目前專案版本與目標 GitHub 儲存庫分支狀態。
-- [ ] 取得使用者對外部 GitHub 推送操作的明確確認。
-- [ ] 推送目前程式碼至指定 GitHub 儲存庫並驗證提交結果。
-- [ ] 回報 GitHub 同步狀態與後續部署方式。
-- [ ] 確認 `Annie8533/toefl-reading-words` 對應的 GitHub Pages 公開網址與可用發布方式。
-- [ ] 加入 GitHub Pages 所需的自動建置與發布設定。
-- [ ] 推送目前網站程式碼與 GitHub Pages 設定至指定儲存庫。
-- [ ] 驗證公開 GitHub Pages 網址可載入網站。
-- [ ] 評估 Firebase Firestore 與未來 Lemon Squeezy 權限驗證的安全分工。
-- [ ] 建立 Firestore 題庫文件結構、部署規則範本與題庫匯入資料。
-- [ ] 將 Firebase 網頁設定接入專案，並建立動態題目載入流程。
-- [ ] 加入測試碼 DEMO2026 的暫時解鎖介面，保留正式付款驗證替換點。
-- [ ] 移除前端靜態題目內容，確認題目只於驗證後自 Firestore 載入。
-- [ ] 驗證 GitHub Pages 建置、Firestore 載題與解鎖失敗情境。
-- [ ] 推送 Firebase 升級版至 GitHub 並啟用 Pages。
+- [x] 檢查目前專案版本與目標 GitHub 儲存庫分支狀態。
+- [x] 取得使用者對外部 GitHub 推送操作的明確確認。
+- [x] 推送目前程式碼至指定 GitHub 儲存庫並驗證提交結果。
+- [x] 回報 GitHub 同步狀態與後續部署方式。
+- [x] 確認 `Annie8533/toefl-reading-words` 對應的 GitHub Pages 公開網址與可用發布方式。
+- [x] 加入 GitHub Pages 所需的自動建置與發布設定。
+- [x] 推送目前網站程式碼與 GitHub Pages 設定至指定儲存庫。
+- [x] 驗證公開 GitHub Pages 網址可載入網站。
+- [x] 評估 Firebase Firestore 與未來 Lemon Squeezy 權限驗證的安全分工。
+- [x] 建立 Firestore 題庫文件結構、部署規則範本與題庫匯入資料。
+- [x] 將 Firebase 網頁設定接入專案，並建立動態題目載入流程。
+- [x] 加入測試碼 DEMO2026 的暫時解鎖介面，保留正式付款驗證替換點。
+- [x] 移除前端靜態題目內容，確認題目只於驗證後自 Firestore 載入。
+- [x] 驗證 GitHub Pages 建置、Firestore 載題與解鎖失敗情境。
+- [x] 推送 Firebase 升級版至 GitHub 並啟用 Pages。
+- [x] 修正 GitHub Pages 子路徑下的前端路由設定，避免首頁顯示 404。
+- [x] 以 GitHub Pages 子路徑完成靜態建置驗證。
+- [x] 推送路由修正並確認公開網址可載入 Firebase 解鎖畫面。
