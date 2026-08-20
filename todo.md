@@ -74,3 +74,6 @@
 - [x] 將 20 筆舊測試題封存到 Firebase 的獨立 legacy 路徑。
 - [x] 從正式 courses/toefl-reading/questions 路徑移除已封存的舊測試題。
 - [x] 驗證正式題庫為 521 題、legacy 路徑完整保留 20 題。
+- [x] 定位並移除首頁用於記住測試碼解鎖狀態的 localStorage 邏輯。
+- [x] 確保重新載入首頁後一律顯示驗證碼輸入畫面。
+- [x] 驗證輸入正確測試碼後仍可正常讀取 Firestore 題庫。
