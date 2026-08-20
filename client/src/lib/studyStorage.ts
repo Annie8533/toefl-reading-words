@@ -25,6 +25,9 @@ export type MistakeEntry = QuestionSnapshot & {
   wrongCount: number;
   reviewWeight: number;
   lastWrongAt: string;
+  consecutiveWrong?: number;
+  correctStreak?: number;
+  lastScheduledRound?: number;
 };
 
 export type DailyProgress = {
@@ -42,6 +45,7 @@ export type StudyRecord = {
   currentRoundCompletedIds: string[];
   activeQuestionId: string;
   currentRoundReviewed: boolean;
+  roundNumber: number;
   dailyProgress: DailyProgress;
   questions: Record<string, QuestionProgress>;
   mistakes: Record<string, MistakeEntry>;
@@ -77,6 +81,7 @@ export function createInitialRecord(questionIds: string[]): StudyRecord {
     currentRoundCompletedIds: [],
     activeQuestionId: questionIds[0] ?? "",
     currentRoundReviewed: false,
+    roundNumber: 1,
     dailyProgress: createDailyProgress(),
     questions: {},
     mistakes: {},
@@ -107,6 +112,7 @@ export function loadStudyRecord(questionIds: string[]): StudyRecord {
       currentRoundCompletedIds: (parsed.currentRoundCompletedIds ?? []).filter((id) => available.has(id)),
       activeQuestionId,
       currentRoundReviewed: Boolean(parsed.currentRoundReviewed),
+      roundNumber: Math.max(Number(parsed.roundNumber ?? 1), 1),
       dailyProgress: refreshDailyProgress(parsed.dailyProgress),
       questions: parsed.questions ?? {},
       mistakes: parsed.mistakes ?? {},
@@ -128,32 +134,54 @@ export function saveStudyRecord(record: StudyRecord): boolean {
 export function createNewRound(record: StudyRecord, questionIds: string[]): StudyRecord {
   const isUnseen = (id: string) => !record.seenQuestionIds.includes(id);
   const mistakeIds = questionIds.filter((id) => Boolean(record.mistakes[id]));
-  const unseenIds = questionIds.filter((id) => isUnseen(id) && !record.mistakes[id]);
+  const unseenIds = questionIds.filter((id) => isUnseen(id));
   const otherIds = questionIds.filter((id) => !record.mistakes[id] && !isUnseen(id));
   const shuffle = <T,>(items: T[]) => [...items].sort(() => Math.random() - 0.5);
 
-  // 每一輪優先保留新題；錯題最多佔 40%，並以穿插方式分散，不會連續大量重複出現。
+  // 題庫足夠時，每輪保留最多 4 題錯題；新題固定在前段，錯題只安排在後段。
+  // 新題不足時，會以待複習錯題補足，已答對題僅在兩者都不足時才最後回收。
   const targetCount = Math.min(10, questionIds.length);
-  const mistakeCount = Math.min(Math.floor(targetCount * 0.4), mistakeIds.length);
-  const freshPool = [...shuffle(unseenIds), ...shuffle(otherIds)];
-  const selectedMistakes = shuffle(mistakeIds).slice(0, mistakeCount);
-  const freshNeeded = targetCount - selectedMistakes.length;
-  const selectedFresh = freshPool.slice(0, freshNeeded);
-  const fallbackMistakes = shuffle(mistakeIds.filter((id) => !selectedMistakes.includes(id)));
-  const remainingCandidates = shuffle(questionIds.filter((id) => !selectedMistakes.includes(id) && !selectedFresh.includes(id)));
-  const baseRound = [...selectedFresh, ...fallbackMistakes, ...remainingCandidates].slice(0, freshNeeded);
-  const mixed = [...baseRound];
-  selectedMistakes.forEach((mistake, index) => {
-    const insertionIndex = Math.min(mixed.length, 1 + Math.floor(((index + 1) * (mixed.length + 1)) / (selectedMistakes.length + 1)));
-    mixed.splice(insertionIndex, 0, mistake);
+  const nextRoundNumber = Math.max(record.roundNumber, 1) + 1;
+  const standardMistakeCount = Math.min(4, mistakeIds.length);
+  const freshTarget = targetCount - standardMistakeCount;
+  const selectedFresh = shuffle(unseenIds).slice(0, freshTarget);
+  const extraMistakesNeeded = Math.max(0, targetCount - selectedFresh.length - standardMistakeCount);
+  const mistakeTarget = Math.min(mistakeIds.length, standardMistakeCount + extraMistakesNeeded);
+
+  const scoredMistakes = mistakeIds
+    .map((id) => {
+      const entry = record.mistakes[id];
+      const repeatedWrongBonus = (entry.consecutiveWrong ?? 0) * 3;
+      const recentAppearancePenalty = entry.lastScheduledRound === record.roundNumber ? 5 : 0;
+      const correctStreakPenalty = (entry.correctStreak ?? 0) * 4;
+      return {
+        id,
+        score: entry.wrongCount * 3 + entry.reviewWeight + repeatedWrongBonus - recentAppearancePenalty - correctStreakPenalty + Math.random(),
+      };
+    })
+    .sort((first, second) => second.score - first.score);
+
+  // 分數高者較容易被選入；選入後再由低到高排在後段，讓最需要複習的題不會搶走前段新題。
+  const selectedMistakes = scoredMistakes
+    .slice(0, mistakeTarget)
+    .sort((first, second) => first.score - second.score)
+    .map((item) => item.id);
+  const selectedIds = [...selectedFresh, ...selectedMistakes];
+  const fallbackCorrect = shuffle(otherIds.filter((id) => !selectedIds.includes(id))).slice(0, targetCount - selectedIds.length);
+  const mixed = [...selectedIds, ...fallbackCorrect];
+  const mistakes = { ...record.mistakes };
+  selectedMistakes.forEach((id) => {
+    mistakes[id] = { ...mistakes[id], lastScheduledRound: nextRoundNumber };
   });
 
   return {
     ...record,
+    mistakes,
     currentRoundIds: mixed,
     currentRoundCompletedIds: [],
     activeQuestionId: mixed[0] ?? "",
     currentRoundReviewed: false,
+    roundNumber: nextRoundNumber,
     dailyProgress: refreshDailyProgress(record.dailyProgress),
   };
 }
@@ -200,10 +228,16 @@ export function recordAttempt(
 
   if (isCorrect && previousMistake) {
     const remainingWeight = previousMistake.reviewWeight - 1;
-    if (remainingWeight <= 0) {
+    const correctStreak = (previousMistake.correctStreak ?? 0) + 1;
+    if (correctStreak >= 2) {
       delete mistakes[question.id];
     } else {
-      mistakes[question.id] = { ...previousMistake, reviewWeight: remainingWeight };
+      mistakes[question.id] = {
+        ...previousMistake,
+        reviewWeight: Math.max(remainingWeight, 1),
+        consecutiveWrong: 0,
+        correctStreak,
+      };
     }
   }
 
@@ -213,6 +247,8 @@ export function recordAttempt(
       wrongCount: (previousMistake?.wrongCount ?? 0) + 1,
       reviewWeight: Math.min((previousMistake?.reviewWeight ?? 0) + 2, 8),
       lastWrongAt: now,
+      consecutiveWrong: (previousMistake?.consecutiveWrong ?? 0) + 1,
+      correctStreak: 0,
     };
   }
 
